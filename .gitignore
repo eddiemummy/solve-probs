@@ -1,0 +1,20 @@
+# Streamlit — API anahtarı ASLA repoya girmesin!
+.streamlit/secrets.toml
+
+# İlerleme veritabanı (yerel)
+ilerleme.db
+
+# Üretilen belgeler
+*.png
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# OS / editör
+.DS_Store
+.vscode/
+.idea/
