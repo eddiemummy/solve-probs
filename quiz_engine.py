@@ -80,7 +80,9 @@ def sorular_uret(ders, konu, seviye, base_url, api_key, kacinilacak=None):
     dil_notu = ""
     if ders == "İngilizce":
         dil_notu = (
-            "Sorular ve şıklar İngilizce olsun; seviye %s öğrencisine uygun." % seviye
+            "Soru YÖNERGESİ/AÇIKLAMASI Türkçe yazılsın (öğrenciye ne yapması gerektiğini "
+            "Türkçe anlat), ancak sorudaki İngilizce cümle/metin ve 4 şıkkın tamamı "
+            "İngilizce olsun. Seviye: %s öğrencisine uygun." % seviye
         )
     else:
         dil_notu = "Sorular Türkçe olsun; %s sınavı düzeyinde ve müfredatına uygun." % seviye
@@ -117,9 +119,11 @@ ZORLUK: {zorluk_notu}
 - Çeldiriciler (yanlış şıklar) mantıklı ve öğrencinin yapabileceği tipik hatalara dayalı olsun.
 - Sorular orta zordan zora doğru sıralansın ve birbirinden farklı olsun.{kacinma_notu}
 
+Her soru için "aciklama" alanında, doğru cevabın NEDEN doğru olduğunu 1-2 cümlelik kısa bir çözümle Türkçe yaz.
+
 SADECE aşağıdaki formatta geçerli bir JSON dizisi döndür, başka hiçbir açıklama yazma:
 [
-  {{"soru": "Soru metni", "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."], "dogru": "A"}},
+  {{"soru": "Soru metni", "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."], "dogru": "A", "aciklama": "Doğru cevabın kısa çözümü"}},
   ...
 ]
 Tam olarak {SORU_SAYISI} soru olmalı."""
@@ -137,6 +141,7 @@ Tam olarak {SORU_SAYISI} soru olmalı."""
         if len(s["secenekler"]) < 2:
             continue
         s["dogru"] = str(s["dogru"]).strip().upper()[:1]
+        s["aciklama"] = str(s.get("aciklama", "")).strip()
         temiz.append(s)
     return temiz[:SORU_SAYISI]
 

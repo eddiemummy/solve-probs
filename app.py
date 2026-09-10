@@ -54,21 +54,40 @@ ss.setdefault("baslangic", None)
 
 # ---- Puanlama yardımcıları ------------------------------------------------
 def _puanla():
-    """session_state içindeki radio cevaplarından doğru sayısını bulur."""
-    dogru = 0
+    """Cevapları puanlar; (doğru, boş, yanlış sayıları ve inceleme listesi) döndürür."""
+    dogru = bos = yanlis = 0
+    inceleme = []  # yalnızca cevaplanmış YANLIŞ sorular
     for i, s in enumerate(ss.sorular):
         secilen = ss.get(f"r_{i}")
-        if secilen and secilen.strip()[:1].upper() == s["dogru"]:
+        if not secilen:
+            bos += 1
+            continue
+        if secilen.strip()[:1].upper() == s["dogru"]:
             dogru += 1
-    return dogru
+            continue
+        # cevaplanmış ama yanlış
+        yanlis += 1
+        dogru_metin = next(
+            (o for o in s["secenekler"] if o.strip()[:1].upper() == s["dogru"]),
+            s["dogru"],
+        )
+        inceleme.append({
+            "no": i + 1,
+            "soru": s["soru"],
+            "secilen": secilen,
+            "dogru_metin": dogru_metin,
+            "aciklama": s.get("aciklama", ""),
+        })
+    return dogru, bos, yanlis, inceleme
 
 
 def _testi_bitir(sure_asildi):
-    dogru = _puanla()
+    dogru, bos, yanlis, inceleme = _puanla()
     rozet, yuzde = qe.rozet_hesapla(dogru, len(ss.sorular))
     qe.sonuc_kaydet(ss.ad, ss.ders, ss.konu, ss.seviye, rozet)
-    ss.update(asama="sonuc", dogru=dogru, toplam=len(ss.sorular),
-              rozet=rozet, yuzde=yuzde, sure_asildi=sure_asildi)
+    ss.update(asama="sonuc", dogru=dogru, bos=bos, yanlis=yanlis,
+              toplam=len(ss.sorular), rozet=rozet, yuzde=yuzde,
+              sure_asildi=sure_asildi, inceleme=inceleme)
 
 
 # ==========================================================================
@@ -213,7 +232,12 @@ elif ss.asama == "sonuc":
         f"<h2>Sonuç: <span class='rozet-rozet' style='background:{renkler[r]}'>{r}</span></h2>",
         unsafe_allow_html=True,
     )
-    st.metric("Doğru", f"{ss.dogru} / {ss.toplam}", f"%{ss.yuzde}")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("✅ Doğru", ss.dogru)
+    m2.metric("❌ Yanlış", ss.yanlis)
+    m3.metric("⬜ Boş", ss.bos)
+    m4.metric("Başarı", f"%{ss.yuzde}")
+    st.caption(f"Toplam {ss.toplam} soru üzerinden.")
 
     if qe.gecti_mi(r):
         st.success("🎉 Altın ve üzeri! Bir sonraki konuya geçebilirsin.")
@@ -227,6 +251,26 @@ elif ss.asama == "sonuc":
     st.image(png, caption="Sonuç belgen", use_container_width=True)
     st.download_button("⬇️ Belgeyi PNG olarak indir", png,
                        file_name=f"{ss.ad}_{ss.konu}_{r}.png", mime="image/png")
+
+    # ---- Cevaplanmış yanlış soruların incelemesi -------------------------
+    yanlislar = ss.get("inceleme", [])
+    if yanlislar:
+        st.markdown("---")
+        st.subheader(f"❌ Yanlış cevapladığın sorular ({len(yanlislar)})")
+        st.caption("Aşağıda yanlış işaretlediğin soruları ve doğru cevabı görebilirsin. "
+                   "(Boş bıraktığın sorular burada gösterilmez.)")
+        for x in yanlislar:
+            with st.expander(f"Soru {x['no']}"):
+                st.markdown(
+                    f"<div class='soru-kutu'>{x['soru']}</div>",
+                    unsafe_allow_html=True,
+                )
+                st.markdown(f"**Senin cevabın:** :red[{x['secilen']}]")
+                st.markdown(f"**Doğru cevap:** :green[{x['dogru_metin']}]")
+                if x["aciklama"]:
+                    st.info("💡 " + x["aciklama"])
+    elif ss.yanlis == 0 and ss.bos == 0:
+        st.success("🌟 Tüm soruları doğru yaptın, harikasın!")
 
     c1, c2 = st.columns(2)
     if c1.button("🔁 Aynı konudan yeni test"):
